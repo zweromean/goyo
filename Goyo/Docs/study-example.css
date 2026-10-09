@@ -1,0 +1,42 @@
+:root {
+  color-scheme: light;
+  --study-green: #388c3d;
+  --coral: #e86e70;
+  --purple: #9473cc;
+  --teal: #47b0ab;
+  --charcoal: #1e1e1e;
+  --violet: #645cff;
+  --ink: #242424;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #f1f2f1; color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+button { font: inherit; cursor: pointer; touch-action: manipulation; }
+.phone { width: min(100%, 430px); min-height: 100dvh; margin: auto; background: white; }
+.study-header { background: var(--study-green); color: #edf6ed; padding: max(24px, env(safe-area-inset-top)) 24px 38px; text-align: center; }
+.header-row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+.total-time { margin: 44px 0 16px; font-size: clamp(42px, 13vw, 60px); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.status { font-size: 14px; opacity: .9; min-height: 20px; }
+.section-title { padding: 20px 24px 14px; border-bottom: 1px solid #eee; font-size: 16px; font-weight: 600; }
+.subjects { padding: 10px 24px 20px; }
+.subject { display: flex; align-items: center; gap: 16px; min-height: 92px; }
+.play { border: 0; border-radius: 50%; width: 48px; height: 48px; color: white; background: var(--subject-color); font-size: 21px; flex-shrink: 0; }
+.play:disabled { opacity: .35; cursor: default; }
+.subject-name { font-size: 21px; }
+.subject-time { margin-left: auto; font-size: 21px; font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 24px; }
+.actions button { border: 0; border-radius: 12px; padding: 12px 14px; background: #eee; color: #555; }
+.note { font-size: 13px; line-height: 1.6; color: #777; padding: 16px 24px; }
+.record { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 12px 24px; padding-bottom: 14px; border-bottom: 1px solid #eee; font-size: 14px; }
+.stars { color: #ca9c21; }
+dialog { border: 0; border-radius: 28px; padding: 30px 24px; width: min(92vw, 390px); text-align: center; }
+dialog::backdrop { background: #0008; }
+.rating-buttons { display: flex; justify-content: center; gap: 8px; margin: 24px 0; }
+.rating-buttons button { border: 0; background: transparent; color: #d5a72c; font-size: 34px; }
+.primary { border: 0; background: var(--study-green); color: white; padding: 14px 24px; border-radius: 14px; }
+.wait { background: var(--charcoal); color: white; }
+.wait-symbol { color: var(--violet); font-size: 42px; }
+.wait-time { font-size: 64px; font-weight: 300; font-variant-numeric: tabular-nums; margin: 24px 0 32px; }
+.wait .primary { width: 100%; background: #333; color: #958fff; border-radius: 32px; }
+.wait .primary:disabled { opacity: .5; cursor: default; }
+button:focus-visible { outline: 3px solid #222; outline-offset: 4px; }
+.wait button:focus-visible { outline-color: var(--violet); }

@@ -1,0 +1,68 @@
+name: Goyo iPhone IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Goyo/**'
+      - '.github/workflows/ios-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goyo-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-ipa:
+    name: Build GoyoBrowser for iPhone
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check project and filters
+        working-directory: Goyo
+        run: |
+          python3 Tools/check_project.py
+          node Tests/filters.static.cjs
+          node Tests/reading.test.cjs
+          node Tests/dc.test.cjs
+
+      - name: Build device app
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcodebuild \
+            -project Goyo/Goyo.xcodeproj \
+            -scheme GoyoBrowser \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/goyo-device" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM= \
+            build
+
+      - name: Package unsigned IPA for Sideloadly
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 Goyo/Tools/package_ipa.py \
+            "$RUNNER_TEMP/goyo-device/Build/Products/Release-iphoneos/GoyoBrowser.app" \
+            "$GITHUB_WORKSPACE/dist/GoyoBrowser-unsigned.ipa"
+          printf '%s\n' 'GoyoBrowser IPA built. Download the artifact and extract its IPA for Sideloadly.' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' 'This browser build includes study tools and in-app web filters. System Screen Time locking requires the separately provisioned Goyo target.' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: GoyoBrowser-IPA
+          path: dist/GoyoBrowser-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

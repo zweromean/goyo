@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>고요 · 공부 화면 예시</title><link rel="stylesheet" href="study-example.css">
+</head>
+<body>
+<main class="phone">
+  <header class="study-header"><div class="header-row"><span>공부</span><span id="date"></span><span>고요</span></div>
+    <div class="total-time" id="total">0:00:00</div><div class="status" id="status">오늘의 시간을 차곡차곡</div>
+  </header>
+  <div class="section-title">과목별 타이머</div><section class="subjects" id="subjects"></section>
+  <div class="actions"><button id="wait-example">30초 대기 예시</button><button id="reset">예시 기록 초기화</button></div>
+  <p class="note">공부 화면·CSS 예시입니다. 과목의 재생 버튼으로 시간을 측정하고, 정지하면 집중도 별점을 남길 수 있습니다.</p>
+  <section id="records" aria-label="공부 기록"></section>
+</main>
+<dialog id="rating"><h2>얼마나 집중하셨나요?</h2><p id="rating-subject"></p><div class="rating-buttons" id="stars"></div><button class="primary" id="save-rating">저장</button></dialog>
+<dialog class="wait" id="wait"><div class="wait-symbol">⌛</div><h2>잠깐 쉬어가세요</h2><div class="wait-time" id="wait-time">0:30</div><button class="primary" id="continue" disabled>계속하기</button></dialog>
+<script>
+'use strict';
+const subjects = [{name:'국어', color:'var(--coral)'}, {name:'수학', color:'var(--purple)'}, {name:'영어', color:'var(--teal)'}];
+let state = {active:null, records:[]}, focused = null, stars = 3;
+try { const saved = JSON.parse(localStorage.getItem('goyo-study-example-v1')); if (saved && Array.isArray(saved.records)) state = saved; } catch (_) {}
+const byID = id => document.getElementById(id);
+const time = seconds => { const n = Math.max(0, Math.floor(seconds)); return `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`; };
+function persist() { try { localStorage.setItem('goyo-study-example-v1', JSON.stringify(state)); } catch (_) {} }
+function overlap(start, end, day, now) { return Math.max(0, Math.min(end, now) - Math.max(start, day)) / 1000; }
+function seconds(index, day, now) {
+  return state.records.filter(r => r.subject === index).reduce((sum,r) => sum + overlap(r.start, r.end, day, now), 0)
+    + (state.active?.subject === index ? overlap(state.active.start, now, day, now) : 0);
+}
+subjects.forEach((subject,index) => {
+  const row = document.createElement('div'); row.className = 'subject'; row.style.setProperty('--subject-color', subject.color);
+  const button = document.createElement('button'); button.className = 'play'; button.id = `play-${index}`;
+  button.addEventListener('click', () => toggle(index));
+  const name = document.createElement('span'); name.className = 'subject-name'; name.textContent = subject.name;
+  const elapsed = document.createElement('span'); elapsed.className = 'subject-time'; elapsed.id = `time-${index}`;
+  row.append(button,name,elapsed); byID('subjects').append(row);
+});
+function toggle(index) {
+  if (state.active && state.active.subject !== index) return;
+  if (state.active) {
+    const record = {...state.active, end:Date.now(), stars:0}; state.records.push(record); state.active = null; focused = record;
+    stars = 3; byID('rating-subject').textContent = subjects[index].name + ' · ' + time((record.end-record.start)/1000);
+    renderStars(); byID('rating').showModal();
+  } else state.active = {subject:index, start:Date.now()};
+  persist(); render();
+}
+function renderStars() {
+  byID('stars').replaceChildren();
+  for (let i=1;i<=5;i++) { const b=document.createElement('button'); b.textContent=i<=stars?'★':'☆'; b.setAttribute('aria-label',`집중도 ${i}점`); b.onclick=()=>{stars=i;renderStars()}; byID('stars').append(b); }
+}
+byID('save-rating').onclick=()=>{ if(focused) focused.stars=stars; persist(); render(); byID('rating').close(); };
+let renderedRecords = '';
+function render() {
+  const now = new Date(), day = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  byID('date').textContent = now.toLocaleDateString('ko-KR',{month:'numeric',day:'numeric',weekday:'short'});
+  byID('total').textContent = time(subjects.reduce((sum,_,i)=>sum+seconds(i,day,+now),0));
+  byID('status').textContent = state.active ? `${subjects[state.active.subject].name} 공부 중 · ${time((+now-state.active.start)/1000)}` : '오늘의 시간을 차곡차곡';
+  subjects.forEach((s,i)=>{ const active=state.active?.subject===i, b=byID(`play-${i}`); b.textContent=active?'■':'▶'; b.disabled=!!state.active&&!active; b.setAttribute('aria-label',s.name+(active?' 종료':' 시작')); byID(`time-${i}`).textContent=time(seconds(i,day,+now)); });
+  const signature=JSON.stringify(state.records);
+  if(signature!==renderedRecords){ renderedRecords=signature; byID('records').replaceChildren(); state.records.slice(-10).reverse().forEach(r=>{const row=document.createElement('div');row.className='record';const text=document.createElement('span');text.textContent=subjects[r.subject].name+' · '+time((r.end-r.start)/1000);const rating=document.createElement('span');rating.className='stars';rating.textContent=r.stars?'★'.repeat(r.stars)+'☆'.repeat(5-r.stars):'미평가';row.append(text,rating);byID('records').append(row);}); }
+}
+byID('reset').onclick=()=>{if(confirm('예시의 공부 기록을 초기화할까요?')){state={active:null,records:[]};persist();render();}};
+let waitUntil=0;
+byID('wait-example').onclick=()=>{waitUntil=Date.now()+30000;byID('continue').disabled=true;byID('wait-time').textContent='0:30';byID('wait').showModal();};
+byID('continue').onclick=()=>{if(Date.now()>=waitUntil)byID('wait').close();};
+setInterval(()=>{render();if(byID('wait').open){const left=Math.max(0,Math.ceil((waitUntil-Date.now())/1000));byID('wait-time').textContent=`0:${String(left).padStart(2,'0')}`;byID('continue').disabled=left>0;}},250);
+render();
+</script>
+</body></html>

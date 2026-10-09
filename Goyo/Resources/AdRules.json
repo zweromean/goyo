@@ -1,0 +1,6 @@
+[
+  {"trigger":{"url-filter":"^https?://([^/]*\\.)?doubleclick\\.net/"},"action":{"type":"block"}},
+  {"trigger":{"url-filter":"^https?://([^/]*\\.)?googlesyndication\\.com/"},"action":{"type":"block"}},
+  {"trigger":{"url-filter":"^https?://([^/]*\\.)?googleadservices\\.com/"},"action":{"type":"block"}},
+  {"trigger":{"url-filter":"^https?://([^/]*\\.)?adservice\\.google\\.[^/]+/"},"action":{"type":"block"}}
+]
