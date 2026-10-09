@@ -25,6 +25,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install test dependency
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/goyo-test-env"
+          "$RUNNER_TEMP/goyo-test-env/bin/python3" -m pip install lxml
+          printf '%s\n' "$RUNNER_TEMP/goyo-test-env/bin" >> "$GITHUB_PATH"
+
       - name: Check project and filters
         working-directory: Goyo
         run: |
