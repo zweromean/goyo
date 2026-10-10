@@ -72,6 +72,7 @@ enum Shared {
     }
     static let selectionKey = "activitySelection"
     static let allowedSelectionKey = "allowedActivitySelection"
+    static let shieldRequestKey = "shieldOpenRequestedAt"
     static let studyAllowOnlyKey = "studyAllowOnly"
     static let enabledKey = "systemLockEnabled"
     static let unlockUntilKey = "systemUnlockUntil"

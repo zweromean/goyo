@@ -21,7 +21,7 @@ targets = {
     'Goyo': dict(kind='app', sources=main_sources+shared_sources, bundle='$(GOYO_BUNDLE_ID)', family=True, resources=True),
     'GoyoBrowser': dict(kind='app', sources=main_sources+shared_sources, bundle='$(GOYO_BUNDLE_ID).browser', family=False, resources=True),
     'GoyoShieldConfiguration': dict(kind='extension', sources=['Extensions/ShieldConfiguration/ShieldConfiguration.swift','Shared/Preferences.swift'], bundle='$(GOYO_BUNDLE_ID).shieldconfiguration', family=True, extension='com.apple.ManagedSettingsUI.shield-configuration-service', principal='ShieldConfigurationExtension'),
-    'GoyoShieldAction': dict(kind='extension', sources=['Extensions/ShieldAction/ShieldAction.swift'], bundle='$(GOYO_BUNDLE_ID).shieldaction', family=True, extension='com.apple.ManagedSettings.shield-action-service', principal='ShieldActionExtension'),
+    'GoyoShieldAction': dict(kind='extension', sources=['Extensions/ShieldAction/ShieldAction.swift','Shared/Preferences.swift'], bundle='$(GOYO_BUNDLE_ID).shieldaction', family=True, extension='com.apple.ManagedSettings.shield-action-service', principal='ShieldActionExtension'),
     'GoyoActivityMonitor': dict(kind='extension', sources=['Extensions/ActivityMonitor/ActivityMonitor.swift']+shared_sources, bundle='$(GOYO_BUNDLE_ID).activitymonitor', family=True, extension='com.apple.deviceactivity.monitor-extension', principal='ActivityMonitorExtension'),
 }
 for name, spec in targets.items():

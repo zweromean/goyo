@@ -166,15 +166,15 @@ struct GuardView: View {
                 }
             }
             Section("사용 순서") {
-                Text("잠긴 앱을 열면 안내 화면이 표시됩니다. 홈 화면에서 고요를 열고 ‘앱 잠금’ 탭에서 기다린 뒤 원하는 앱으로 돌아가세요.")
+                Text("잠긴 앱의 ‘고요에서 기다리기’를 누르면 고요의 대기 화면이 열립니다(iOS 26.5 이상). 이전 iOS에서는 홈에서 고요를 열고 앱 잠금 탭을 이용해주세요.")
                     .font(.subheadline)
             }
         }
         .navigationTitle("앱 잠금")
         .onChange(of: guardModel.selection) { _, _ in guardModel.saveSelection() }
-        .onChange(of: phase) { _, value in if value == .active { guardModel.refresh() } }
+        .onChange(of: phase) { _, value in if value == .active { guardModel.refresh(); openShieldWait() } }
         .onReceive(refreshClock) { _ in if phase == .active { guardModel.refresh() } }
-        .onAppear { guardModel.refresh() }
+        .onAppear { guardModel.refresh(); openShieldWait() }
         .sheet(isPresented: $showWait) {
             WaitView(title: "선택한 앱 잠금 해제", seconds: app.settings.waitSeconds) {
                 _ = guardModel.unlock()
@@ -186,4 +186,15 @@ struct GuardView: View {
         } message: { Text(guardModel.error ?? "") }
         #endif
     }
+    #if !WEB_ONLY
+    private func openShieldWait() {
+        let requested = Shared.defaults.double(forKey: Shared.shieldRequestKey)
+        guard requested > 0 else { return }
+        Shared.defaults.removeObject(forKey: Shared.shieldRequestKey)
+        guard Date().timeIntervalSince1970 - requested < 120,
+              guardModel.authorized, guardModel.enabled, guardModel.hasSelection,
+              guardModel.until == nil, !Locking.studying else { return }
+        showWait = true
+    }
+    #endif
 }

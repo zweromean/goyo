@@ -52,8 +52,12 @@ struct RootView: View {
         }
         .fullScreenCover(item: $opened) { service in BrowserCover(service: service) }
         .fullScreenCover(isPresented: Binding(get: { breaks.resting && opened == nil && pending == nil }, set: { _ in })) { RestView() }
-        .onChange(of: phase) { _, value in if value == .background { model.settingsUnlocked = false } }
+        .onChange(of: phase) { _, value in
+            if value == .background { model.settingsUnlocked = false }
+            if value == .active { routeShieldRequest() }
+        }
         .task {
+            routeShieldRequest()
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--goyo-smoke-study") {
                 if !study.inSession { study.start() }
@@ -62,6 +66,15 @@ struct RootView: View {
             #endif
         }
         .saturation(model.settings.grayscale ? 0 : 1)
+    }
+    private func routeShieldRequest() {
+        #if !WEB_ONLY
+        let requested = Shared.defaults.double(forKey: Shared.shieldRequestKey)
+        guard requested > 0 else { return }
+        guard Date().timeIntervalSince1970 - requested < 120 else { Shared.defaults.removeObject(forKey: Shared.shieldRequestKey); return }
+        selectedTab = study.isBlockingSNS ? 3 : 2
+        if study.isBlockingSNS { Shared.defaults.removeObject(forKey: Shared.shieldRequestKey) }
+        #endif
     }
 }
 
