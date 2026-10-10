@@ -1,22 +1,24 @@
 import SwiftUI
 
 enum SocialService: String, Identifiable, CaseIterable {
-    case youtube, instagram, dcinside
+    case youtube, instagram, dcinside, web
+    static let socialCases: [SocialService] = [.youtube, .instagram, .dcinside]
     var id: String { rawValue }
     var title: String {
-        switch self { case .youtube: return "YouTube"; case .instagram: return "Instagram"; case .dcinside: return "디시인사이드" }
+        switch self { case .youtube: return "YouTube"; case .instagram: return "Instagram"; case .dcinside: return "디시인사이드"; case .web: return "허용 웹사이트" }
     }
     var symbol: String {
-        switch self { case .youtube: return "play.rectangle.fill"; case .instagram: return "camera.fill"; case .dcinside: return "text.bubble.fill" }
+        switch self { case .youtube: return "play.rectangle.fill"; case .instagram: return "camera.fill"; case .dcinside: return "text.bubble.fill"; case .web: return "globe" }
     }
     var subtitle: String {
-        switch self { case .youtube: return "검색과 영상 시청"; case .instagram: return "메시지와 프로필"; case .dcinside: return "갤러리 제한 · 개념글 전용" }
+        switch self { case .youtube: return "검색과 영상 시청"; case .instagram: return "메시지와 프로필"; case .dcinside: return "갤러리 제한 · 개념글 전용"; case .web: return "앱 안에서 열기" }
     }
     var url: URL {
         switch self {
         case .youtube: return URL(string: "https://m.youtube.com")!
         case .instagram: return URL(string: "https://www.instagram.com/direct/inbox/")!
         case .dcinside: return URL(string: "about:blank")!
+        case .web: return URL(string: "about:blank")!
         }
     }
 }
@@ -29,55 +31,16 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @State private var pending: SocialService?
     @State private var opened: SocialService?
+    @State private var selectedTab = 0
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Image(systemName: "moon.circle.fill").font(.system(size: 44)).foregroundStyle(.mint)
-                            Text("필요한 것만,\n조용하게.").font(.system(size: 32, weight: .bold))
-                            Text("검색과 연락은 남기고, 끝없는 스크롤은 끄세요.")
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(28)
-                        .background(Color(red: 0.04, green: 0.1, blue: 0.18), in: RoundedRectangle(cornerRadius: 28))
-                        .foregroundStyle(.white)
-
-                        Text("SNS 열기").font(.title2.bold())
-                        if study.isBlockingSNS {
-                            Label("공부 중입니다. SNS가 잠겨 있습니다.", systemImage: "book.closed")
-                        }
-                        ForEach(SocialService.allCases) { service in
-                            Menu {
-                                ForEach(accounts.forService(service)) { profile in Button(profile.name) { accounts.choose(profile) } }
-                            } label: {
-                                Label("\(service.title) · \(accounts.current(service).name)", systemImage: "person.crop.circle")
-                            }
-                            Button { pending = service } label: {
-                                HStack(spacing: 16) {
-                                    Image(systemName: service.symbol).font(.title).frame(width: 48)
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(service.title).font(.title3.bold())
-                                        Text(service.subtitle)
-                                            .font(.subheadline).foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Text(model.settings.waitSeconds == 0 ? "열기" : "\(model.settings.waitSeconds)초 대기")
-                                        .font(.subheadline.weight(.semibold))
-                                }.padding(20).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-                            }.buttonStyle(.plain).disabled(study.isBlockingSNS || breaks.resting)
-                        }
-                        NavigationLink("계정 관리") { AccountsView() }
-                        Label("차단 설정은 전용 브라우저에 적용됩니다.", systemImage: "slider.horizontal.3")
-                            .font(.subheadline).foregroundStyle(.secondary)
-                    }.padding(20)
-                }.background(Color(.systemGroupedBackground)).navigationTitle("고요")
-            }.tabItem { Label("홈", systemImage: "house") }
-            NavigationStack { FiltersView() }.tabItem { Label("필터", systemImage: "line.3.horizontal.decrease.circle") }
-            NavigationStack { GuardView() }.tabItem { Label("앱 잠금", systemImage: "lock.shield") }
-            NavigationStack { StudyView() }.tabItem { Label("공부", systemImage: "book") }
-            NavigationStack { ProtectionView() }.tabItem { Label("보호", systemImage: "shield") }
+                RetroHomeView(openService: { pending = $0 }, openStudy: { selectedTab = 3 }, openGuard: { selectedTab = 2 })
+            }.tabItem { Label("홈", systemImage: "house") }.tag(0)
+            NavigationStack { FiltersView() }.tabItem { Label("필터", systemImage: "line.3.horizontal.decrease.circle") }.tag(1)
+            NavigationStack { GuardView() }.tabItem { Label("앱 잠금", systemImage: "lock.shield") }.tag(2)
+            NavigationStack { StudyView() }.tabItem { Label("공부", systemImage: "book") }.tag(3)
+            NavigationStack { ProtectionView() }.tabItem { Label("보호", systemImage: "shield") }.tag(4)
         }
         .sheet(item: $pending) { service in
             WaitView(title: service.title, seconds: model.settings.waitSeconds) {
@@ -100,10 +63,11 @@ struct FiltersView: View {
         ProtectedSettings {
         Form {
             Section("짧은 영상") {
-                Toggle("유튜브 쇼츠 차단", isOn: $model.settings.shorts)
+                Toggle("유튜브 쇼츠 탭·영상 제거", isOn: $model.settings.shorts)
                 Toggle("인스타그램 릴스 차단", isOn: $model.settings.reels)
             }
             Section("추천과 피드") {
+                Toggle("앱 설치 · 앱에서 열기 창 숨기기", isOn: $model.settings.hideInstallPrompts)
                 Toggle("유튜브 추천 영상 숨기기", isOn: $model.settings.recommendations)
                 Toggle("유튜브 홈 피드 숨기기", isOn: $model.settings.youtubeFeed)
                 Toggle("인스타그램 홈·탐색 피드 숨기기", isOn: $model.settings.instagramFeed)

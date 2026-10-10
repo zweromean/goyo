@@ -22,6 +22,13 @@ function visibility(run,html,id,expected,label){
 }
 function check(value,label){assert(value,label);checks++}
 let r=run('https://m.youtube.com/results?search_query=math');
+let nav='<ytm-pivot-bar-item-renderer id="tab"><a href="/shorts">Shorts</a></ytm-pivot-bar-item-renderer><ytm-pivot-bar-item-renderer id="home"><a href="/">Home</a></ytm-pivot-bar-item-renderer><ytm-pivot-bar-item-renderer id="buttonTab"><button aria-label="쇼츠">쇼츠</button></ytm-pivot-bar-item-renderer><ytm-pivot-bar-item-renderer id="absoluteTab"><a href="https://m.youtube.com/shorts/x">Shorts</a></ytm-pivot-bar-item-renderer>';
+visibility(r,nav,'tab',false,'Entire Shorts tab removed');
+visibility(r,nav,'home',true,'Home tab preserved');
+visibility(r,nav,'buttonTab',false,'Button-based Shorts tab removed');
+visibility(r,nav,'absoluteTab',false,'Absolute URL Shorts tab removed');
+r.context.GoyoFilter.update({shorts:false});visibility(r,nav,'tab',true,'Shorts tab restores with toggle');
+r.context.GoyoFilter.update({shorts:true});
 let html='<ytm-video-with-context-renderer id="search">Math</ytm-video-with-context-renderer><ytm-reel-shelf-renderer id="shorts">Shorts</ytm-reel-shelf-renderer>';
 visibility(r,html,'search',true,'Search results preserved');visibility(r,html,'shorts',false,'Shorts hidden');
 r.context.GoyoFilter.update({shorts:false});visibility(r,html,'shorts',true,'Shorts restore');

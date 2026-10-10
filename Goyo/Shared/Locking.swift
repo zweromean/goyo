@@ -25,13 +25,30 @@ enum Locking {
         }
         set { Shared.defaults.set(try? JSONEncoder().encode(newValue), forKey: Shared.selectionKey) }
     }
+    static var allowedSelection: FamilyActivitySelection {
+        get {
+            guard let data = Shared.defaults.data(forKey: Shared.allowedSelectionKey),
+                  let value = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else { return FamilyActivitySelection() }
+            return value
+        }
+        set { Shared.defaults.set(try? JSONEncoder().encode(newValue), forKey: Shared.allowedSelectionKey) }
+    }
     static func apply() {
+        guard AuthorizationCenter.shared.authorizationStatus == .approved else { store.clearAllSettings(); return }
         guard Shared.defaults.bool(forKey: Shared.enabledKey) || studying else { store.clearAllSettings(); return }
         let chosen = selection
-        store.shield.applications = chosen.applicationTokens.isEmpty ? nil : chosen.applicationTokens
-        store.shield.applicationCategories = chosen.categoryTokens.isEmpty ? nil : .specific(chosen.categoryTokens)
-        store.shield.webDomains = chosen.webDomainTokens.isEmpty ? nil : chosen.webDomainTokens
-        store.shield.webDomainCategories = chosen.categoryTokens.isEmpty ? nil : .specific(chosen.categoryTokens)
+        let allowed = allowedSelection
+        let apps = chosen.applicationTokens.subtracting(allowed.applicationTokens)
+        let domains = chosen.webDomainTokens.subtracting(allowed.webDomainTokens)
+        let allowOnly = studying && Shared.defaults.bool(forKey: Shared.studyAllowOnlyKey)
+        store.shield.applications = allowOnly || apps.isEmpty ? nil : apps
+        store.shield.applicationCategories = allowOnly
+            ? .all(except: allowed.applicationTokens)
+            : (chosen.categoryTokens.isEmpty ? nil : .specific(chosen.categoryTokens, except: allowed.applicationTokens))
+        store.shield.webDomains = allowOnly || domains.isEmpty ? nil : domains
+        store.shield.webDomainCategories = allowOnly
+            ? .all(except: allowed.webDomainTokens)
+            : (chosen.categoryTokens.isEmpty ? nil : .specific(chosen.categoryTokens, except: allowed.webDomainTokens))
     }
     static func endUnlock() {
         Shared.defaults.removeObject(forKey: Shared.unlockUntilKey)

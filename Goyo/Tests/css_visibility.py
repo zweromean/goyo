@@ -16,7 +16,7 @@ def xpath(selector):
             descendant=descendant[:-1]
         tag=re.match(r'^[\w-]+',part)
         output+='//'+(tag.group(0) if tag else '*')
-        for kind,value in re.findall(r'([.#])([\w-]+)',part):
+        for kind,value in re.findall(r'([.#])([\w-]+)',re.sub(r'\[[^\]]+\]', '', part)):
             if kind=='#': output+=f'[@id="{value}"]'
             else: output+=f'[contains(concat(" ", normalize-space(@class), " "), " {value} ")]'
         for attribute in re.findall(r'\[([^\]]+)\]',part):
@@ -26,7 +26,7 @@ def xpath(selector):
             if operator=='^=': output+=f'[starts-with(@{name},"{value}")]'
             elif operator=='=': output+=f'[@{name}="{value}"]'
             else: output+=f'[@{name}]'
-        if descendant: output+='['+xpath(descendant)[2:]+']'
+        if descendant: output+='['+xpath(descendant)+']'
     return output
 
 value=json.load(sys.stdin)

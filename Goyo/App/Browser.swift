@@ -21,16 +21,18 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     private var adVersion = 0
     private let service: SocialService
     private let profile: AccountProfile
+    private let homeURL: URL
     private var recommendedPosts: [String: Set<String>] = [:]
     var onPost: ((String) -> Void)?
     var suspended = false {
         didSet { webView.evaluateJavaScript("window.GoyoFilter && window.GoyoFilter.setResting(\(suspended));", completionHandler: nil) }
     }
 
-    init(service: SocialService, profile: AccountProfile, settings: FilterSettings) {
+    init(service: SocialService, profile: AccountProfile, settings: FilterSettings, homeURL: URL? = nil) {
         self.service = service
         self.profile = profile
         self.filters = settings
+        self.homeURL = homeURL ?? service.url
         let config = WKWebViewConfiguration()
         config.websiteDataStore = profile.legacyStore ? .default() : WKWebsiteDataStore(forIdentifier: profile.id)
         config.allowsInlineMediaPlayback = true
@@ -60,6 +62,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
         controller.addUserScript(WKUserScript(source: Self.script(settings), injectionTime: .atDocumentStart, forMainFrameOnly: true))
         webView.evaluateJavaScript("window.GoyoFilter && window.GoyoFilter.update(\(settings.json));", completionHandler: nil)
         webView.evaluateJavaScript("window.GoyoDcFilter && window.GoyoDcFilter.update(\(settings.json));", completionHandler: nil)
+        webView.evaluateJavaScript("window.GoyoInstallPrompts && window.GoyoInstallPrompts.update(\(settings.json));", completionHandler: nil)
         if dcChanged && service == .dcinside {
             recommendedPosts.removeAll()
             if let url = webView.url, let route = DcPolicy.parse(url), DcPolicy.allows(route.gallery, settings: settings) {
@@ -70,7 +73,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     private static func script(_ settings: FilterSettings) -> String {
-        let source = ["DcPolicy", "Filters", "DcFilters"].compactMap { name -> String? in
+        let source = ["DcPolicy", "Filters", "DcFilters", "InstallPrompts"].compactMap { name -> String? in
             guard let url = Bundle.main.url(forResource: name, withExtension: "js") else { return nil }
             return try? String(contentsOf: url, encoding: .utf8)
         }.joined(separator: "\n")
@@ -84,7 +87,7 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
                 <h2>필요한 갤러리만 열어보세요</h2><p>위에서 갤러리 ID나 주소를 입력해주세요.<br>설정한 갤러리는 ‘갤러리 목록’에서 선택할 수 있습니다.</p>
                 <p>개념글 전용 모드에서는 개념글 목록에서 확인된 게시물만 열립니다.</p></html>
                 """, baseURL: nil)
-        } else { webView.load(URLRequest(url: service.url)) }
+        } else { webView.load(URLRequest(url: homeURL)) }
     }
     func openGallery(_ input: String) {
         let clean = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -163,6 +166,9 @@ final class BrowserSession: NSObject, ObservableObject, WKNavigationDelegate, WK
             decisionHandler(.cancel); return
         }
         let host = url.host ?? ""
+        if filters.hideInstallPrompts && (host == "apps.apple.com" || host == "itunes.apple.com" || host == "play.google.com") {
+            decisionHandler(.cancel); return
+        }
         if service == .dcinside, action.targetFrame?.isMainFrame == false, let route = DcPolicy.parse(url) {
             let allowed = DcPolicy.allows(route.gallery, settings: filters) &&
                 (!filters.dcRecommendedOnly || (route.post == nil ? route.recommended : recommendedPosts[route.gallery]?.contains(route.post!) == true))
@@ -223,10 +229,10 @@ struct BrowserScreen: View {
     @StateObject private var session: BrowserSession
     @State private var query = ""
     @State private var showFilters = false
-    init(service: SocialService, profile: AccountProfile) {
+    init(service: SocialService, profile: AccountProfile, homeURL: URL? = nil) {
         self.service = service
         self.profile = profile
-        _session = StateObject(wrappedValue: BrowserSession(service: service, profile: profile, settings: Shared.settings))
+        _session = StateObject(wrappedValue: BrowserSession(service: service, profile: profile, settings: Shared.settings, homeURL: homeURL))
     }
     var body: some View {
         NavigationStack {

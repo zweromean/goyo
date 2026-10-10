@@ -44,7 +44,7 @@ for name, spec in targets.items():
         write_plist(f'{name}.entitlements',{'com.apple.developer.family-controls':True,'com.apple.security.application-groups':['$(GOYO_APP_GROUP)']})
 
 source_refs = {}
-app_resources = ['Resources/Filters.js','Resources/DcPolicy.js','Resources/DcFilters.js','Resources/AdRules.json','Resources/Assets.xcassets']
+app_resources = ['Resources/Filters.js','Resources/DcPolicy.js','Resources/DcFilters.js','Resources/AdRules.json','Resources/InstallPrompts.js','Resources/WhiteNoise.wav','Resources/Assets.xcassets']
 paths = set(main_sources+shared_sources+app_resources+['Config.xcconfig'])
 for spec in targets.values(): paths.update(spec['sources'])
 for name,spec in targets.items():
@@ -87,7 +87,10 @@ for name,spec in targets.items():
                   'LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks'] + ([] if app else ['@executable_path/../../Frameworks'])}
         if spec['family']: settings['CODE_SIGN_ENTITLEMENTS']=f'{name}.entitlements'
         if not app: settings.update(APPLICATION_EXTENSION_API_ONLY='YES',SKIP_INSTALL='YES')
-        else: settings['ASSETCATALOG_COMPILER_APPICON_NAME']='AppIcon'
+        else:
+            settings['ASSETCATALOG_COMPILER_APPICON_NAME']='AppIcon'
+            settings['ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES']=['IconGreen','IconNight','IconPaper']
+            settings['ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS']='YES'
         flags=['$(inherited)']
         if mode=='Debug': flags.append('DEBUG')
         if name=='GoyoBrowser': flags.append('WEB_ONLY')

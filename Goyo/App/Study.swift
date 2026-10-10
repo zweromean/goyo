@@ -57,6 +57,7 @@ final class StudyModel: ObservableObject {
     @Published var subjects: [StudySubject]
     @Published var segments: [StudySegment]
     @Published var active: ActiveStudy?
+    @Published private(set) var pausedSubjectID: UUID?
     @Published var blockSNS: Bool
     @Published var selected: UUID
     init() {
@@ -67,23 +68,35 @@ final class StudyModel: ObservableObject {
         segments = d.data(forKey: "studySegments").flatMap { try? JSONDecoder().decode([StudySegment].self, from: $0) } ?? []
         let restored = d.data(forKey: "activeStudy").flatMap { try? JSONDecoder().decode(ActiveStudy.self, from: $0) }
         active = restored; selected = restored?.subjectID ?? loaded[0].id
+        pausedSubjectID = restored == nil ? d.string(forKey: "pausedStudySubject").flatMap(UUID.init(uuidString:)) : nil
         blockSNS = d.object(forKey: Shared.studyLockKey) as? Bool ?? true
         persist()
     }
-    var isBlockingSNS: Bool { active != nil && blockSNS }
+    var inSession: Bool { active != nil || pausedSubjectID != nil }
+    var isBlockingSNS: Bool { inSession && blockSNS }
     func start() {
         guard active == nil, let subject = subjects.first(where: { $0.id == selected }) else { return }
         active = ActiveStudy(subjectID: subject.id, name: subject.name, start: Date())
+        pausedSubjectID = nil
         Shared.defaults.removeObject(forKey: Shared.unlockUntilKey); persist()
     }
     @discardableResult func stop() -> UUID? {
-        guard let current = active else { return nil }
+        pausedSubjectID = nil
+        guard let current = active else { persist(); return nil }
         let end = Date(); var id: UUID?
         if end > current.start {
             let segment = StudySegment(subjectID: current.subjectID, name: current.name, start: current.start, end: end)
             segments.append(segment); id = segment.id
         }
         active = nil; persist(); return id
+    }
+    func pause() {
+        guard let current = active else { return }
+        _ = stop(); pausedSubjectID = current.subjectID; persist()
+    }
+    func resume() {
+        guard let id = pausedSubjectID else { return }
+        selected = id; start()
     }
     func rate(_ id: UUID, stars: Int) {
         guard let i = segments.firstIndex(where: { $0.id == id }) else { return }
@@ -98,11 +111,11 @@ final class StudyModel: ObservableObject {
     }
     func edit(_ id: UUID, name: String, color: String) {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard active?.subjectID != id, !clean.isEmpty, clean.count <= 40, let i = subjects.firstIndex(where: { $0.id == id }) else { return }
+        guard active?.subjectID != id, pausedSubjectID != id, !clean.isEmpty, clean.count <= 40, let i = subjects.firstIndex(where: { $0.id == id }) else { return }
         subjects[i].name = clean; subjects[i].colorKey = color; persist()
     }
     func remove(_ id: UUID) {
-        guard subjects.count > 1, active?.subjectID != id else { return }
+        guard subjects.count > 1, active?.subjectID != id, pausedSubjectID != id else { return }
         subjects.removeAll { $0.id == id }
         if selected == id { selected = subjects[0].id }; persist()
     }
@@ -121,7 +134,8 @@ final class StudyModel: ObservableObject {
         d.set(try? JSONEncoder().encode(segments), forKey: "studySegments")
         if let active { d.set(try? JSONEncoder().encode(active), forKey: "activeStudy") }
         else { d.removeObject(forKey: "activeStudy") }
-        d.set(active != nil, forKey: Shared.studyActiveKey); d.set(blockSNS, forKey: Shared.studyLockKey)
+        d.set(pausedSubjectID?.uuidString, forKey: "pausedStudySubject")
+        d.set(inSession, forKey: Shared.studyActiveKey); d.set(blockSNS, forKey: Shared.studyLockKey)
         #if !WEB_ONLY
         Locking.reconcile()
         #endif
@@ -135,6 +149,7 @@ struct StudyView: View {
     @State private var tab: StudyTab = .timer
     @State private var editSubjects = false
     @State private var rating: RatingRequest?
+    @State private var focusScreen = false
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             VStack(spacing: 0) {
@@ -161,6 +176,8 @@ struct StudyView: View {
         }.toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $editSubjects) { NavigationStack { SubjectsEditor() } }
             .sheet(item: $rating) { request in FocusRatingView(segmentID: request.id) }
+            .fullScreenCover(isPresented: $focusScreen) { StudyFocusView() }
+            .onChange(of: study.inSession) { _, value in if value { focusScreen = true } }
     }
     private func header(_ now: Date) -> some View {
         let today = Calendar.current.startOfDay(for: now)
@@ -182,6 +199,9 @@ struct StudyView: View {
         let today = Calendar.current.startOfDay(for: now)
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                if study.inSession {
+                    Button("집중 화면으로 돌아가기") { focusScreen = true }.buttonStyle(.borderedProminent)
+                }
                 ForEach(study.subjects) { subject in
                     let running = study.active?.subjectID == subject.id
                     HStack(spacing: 16) {

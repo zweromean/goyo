@@ -65,6 +65,13 @@
         'ytm-shorts-lockup-view-model-v3','ytd-rich-item-renderer:has(a[href^="/shorts/"])',
         'ytd-grid-video-renderer:has(a[href^="/shorts/"])','ytm-pivot-bar-item-renderer:has(a[href^="/shorts"])',
         'a[href^="/shorts/"]','a[href="/shorts"]','ytd-guide-entry-renderer:has(a[href^="/shorts"])'
+        ,'ytm-pivot-bar-item-renderer:has([aria-label="Shorts"])'
+        ,'ytm-pivot-bar-item-renderer:has([aria-label="쇼츠"])'
+        ,'ytm-pivot-bar-item-renderer:has(a[href^="https://m.youtube.com/shorts"])'
+        ,'ytm-pivot-bar-item-renderer:has(a[href^="https://www.youtube.com/shorts"])'
+        ,'ytm-pivot-bar-item-renderer:has(.ytm-pivot-bar-item-title[data-goyo-shorts="true"])'
+        ,'yt-tab-shape:has(a[href^="/shorts"])'
+        ,'ytm-shorts-tab-renderer','[data-goyo-shorts-tab="true"]'
       ]);
       if (settings.recommendations) hide([
         'ytd-watch-next-secondary-results-renderer','ytm-watch-next-secondary-results-renderer',
@@ -120,6 +127,13 @@
     }
     const next = css();
     if (style.textContent !== next) style.textContent = next;
+    if (youtube) {
+      // Some mobile layouts use a button and a text label instead of an anchor.
+      document.querySelectorAll('ytm-pivot-bar-item-renderer,yt-tab-shape,ytd-guide-entry-renderer').forEach(tab => {
+        const label = (tab.textContent || '').trim();
+        if (/^(Shorts|쇼츠)$/i.test(label) && tab.dataset.goyoShortsTab !== 'true') tab.dataset.goyoShortsTab = 'true';
+      });
+    }
     scanInstagramAds();
     observePosts();
     const blocked = routeIsBlocked(location.pathname);

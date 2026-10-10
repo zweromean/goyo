@@ -19,12 +19,14 @@ struct FilterSettings: Codable, Equatable {
     var dcRecommendedOnly = true
     var dcGalleryMode = "none"
     var dcGalleryIDs: [String] = []
+    var hideInstallPrompts = true
 
     init() {}
     enum CodingKeys: String, CodingKey {
         case shorts, reels, ads, recommendations, youtubeFeed, instagramFeed, waitSeconds
         case stories, instagramRecommendations, grayscale, postAlarm, postLimit, restScreen, restSeconds, blockAdult
         case dcRecommendedOnly, dcGalleryMode, dcGalleryIDs
+        case hideInstallPrompts
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -47,6 +49,7 @@ struct FilterSettings: Codable, Equatable {
         let mode = try c.decodeIfPresent(String.self, forKey: .dcGalleryMode) ?? "none"
         dcGalleryMode = ["none", "allow", "block"].contains(mode) ? mode : "none"
         dcGalleryIDs = try c.decodeIfPresent([String].self, forKey: .dcGalleryIDs) ?? []
+        hideInstallPrompts = try c.decodeIfPresent(Bool.self, forKey: .hideInstallPrompts) ?? true
     }
 
     var json: String {
@@ -68,6 +71,8 @@ enum Shared {
         #endif
     }
     static let selectionKey = "activitySelection"
+    static let allowedSelectionKey = "allowedActivitySelection"
+    static let studyAllowOnlyKey = "studyAllowOnly"
     static let enabledKey = "systemLockEnabled"
     static let unlockUntilKey = "systemUnlockUntil"
     static let activityName = "goyo.temporary-unlock"

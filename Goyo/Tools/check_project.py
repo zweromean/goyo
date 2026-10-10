@@ -45,7 +45,7 @@ for target in ['Goyo','GoyoBrowser']:
     assert 'Shared/DcPolicy.swift' in included
     resources=next(objects[p] for p in by_name[target]['buildPhases'] if objects[p]['isa']=='PBXResourcesBuildPhase')
     resource_paths={objects[objects[b]['fileRef']]['path'] for b in resources['files']}
-    assert {'Resources/Filters.js','Resources/DcPolicy.js','Resources/DcFilters.js','Resources/AdRules.json','Resources/Assets.xcassets'}<=resource_paths
+    assert {'Resources/Filters.js','Resources/DcPolicy.js','Resources/DcFilters.js','Resources/InstallPrompts.js','Resources/WhiteNoise.wav','Resources/AdRules.json','Resources/Assets.xcassets'}<=resource_paths
 for path in re.findall(r'"path" = "([^"]+)";',pbx):
     if path.endswith(('.app','.appex')): continue
     assert (root/path).exists(), f'Missing project reference: {path}'
@@ -64,5 +64,6 @@ assert len(json.loads((root/'Resources/AdRules.json').read_text()))==4
 assert (root/'Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png').exists()
 assert 'WEB_ONLY' in pbx
 assert 'Embed App Extensions' in pbx
+assert all((root/f'Resources/Assets.xcassets/{name}.appiconset/{name}.png').exists() for name in ['IconGreen','IconNight','IconPaper'])
 assert all((root/p).exists() for p in ['README-KO.md','VALIDATION.md','LICENSE'])
 print('PASS: OpenStep PBX syntax, both app targets include all app sources, resources, five plists, four entitlements, two schemes, icon and documents.')

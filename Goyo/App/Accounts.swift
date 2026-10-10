@@ -48,7 +48,7 @@ struct AccountsView: View {
     @EnvironmentObject private var accounts: AccountModel
     var body: some View {
         Form {
-            ForEach(SocialService.allCases) { service in
+            ForEach(SocialService.socialCases) { service in
                 Section(service.title) {
                     ForEach(accounts.forService(service)) { profile in
                         HStack {

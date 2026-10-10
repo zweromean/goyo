@@ -21,9 +21,11 @@ struct GoyoApp: App {
     @StateObject private var breaks = BreakModel()
     @StateObject private var study = StudyModel()
     @StateObject private var planner = PlannerModel()
+    @StateObject private var launcher = LauncherModel()
     var body: some Scene {
         WindowGroup {
             RootView().environmentObject(model).environmentObject(accounts).environmentObject(breaks).environmentObject(study).environmentObject(planner)
+                .environmentObject(launcher)
                 .tint(Color(red: 0.04, green: 0.55, blue: 0.43))
         }
     }

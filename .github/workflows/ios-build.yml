@@ -16,10 +16,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  browser-ipa:
-    name: Build GoyoBrowser for iPhone
+  iphone-ipa:
+    name: Build ${{ matrix.scheme }} for iPhone
     runs-on: macos-26
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [Goyo, GoyoBrowser]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -39,6 +43,7 @@ jobs:
           node Tests/filters.static.cjs
           node Tests/reading.test.cjs
           node Tests/dc.test.cjs
+          node Tests/install-prompts.test.cjs
 
       - name: Build device app
         shell: bash
@@ -47,7 +52,7 @@ jobs:
           xcodebuild -version
           xcodebuild \
             -project Goyo/Goyo.xcodeproj \
-            -scheme GoyoBrowser \
+            -scheme "${{ matrix.scheme }}" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -57,19 +62,19 @@ jobs:
             DEVELOPMENT_TEAM= \
             build
 
-      - name: Package unsigned IPA for Sideloadly
+      - name: Package device IPA
         shell: bash
         run: |
           set -euo pipefail
           python3 Goyo/Tools/package_ipa.py \
-            "$RUNNER_TEMP/goyo-device/Build/Products/Release-iphoneos/GoyoBrowser.app" \
-            "$GITHUB_WORKSPACE/dist/GoyoBrowser-unsigned.ipa"
-          printf '%s\n' 'GoyoBrowser IPA built. Download the artifact and extract its IPA for Sideloadly.' >> "$GITHUB_STEP_SUMMARY"
-          printf '%s\n' 'This browser build includes study tools and in-app web filters. System Screen Time locking requires the separately provisioned Goyo target.' >> "$GITHUB_STEP_SUMMARY"
+            "$RUNNER_TEMP/goyo-device/Build/Products/Release-iphoneos/${{ matrix.scheme }}.app" \
+            "$GITHUB_WORKSPACE/dist/${{ matrix.scheme }}-unsigned.ipa"
+          printf '%s\n' 'Device build succeeded. Goyo includes the Screen Time extensions; it requires Family Controls and App Group provisioning for all four targets to run.' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' 'GoyoBrowser is the companion browser build. Free-account re-signing of Goyo does not enable Screen Time.' >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v6
         with:
-          name: GoyoBrowser-IPA
-          path: dist/GoyoBrowser-unsigned.ipa
+          name: ${{ matrix.scheme }}-IPA
+          path: dist/${{ matrix.scheme }}-unsigned.ipa
           if-no-files-found: error
           retention-days: 14

@@ -9,6 +9,8 @@ final class GuardModel: ObservableObject {
     @Published var authorized = AuthorizationCenter.shared.authorizationStatus == .approved
     @Published var enabled = Shared.defaults.bool(forKey: Shared.enabledKey)
     @Published var selection = Locking.selection
+    @Published var allowedSelection = Locking.allowedSelection
+    @Published var studyAllowOnly = Shared.defaults.bool(forKey: Shared.studyAllowOnlyKey)
     @Published var error: String?
     @Published var until: Date?
     private let center = DeviceActivityCenter()
@@ -36,6 +38,21 @@ final class GuardModel: ObservableObject {
     func saveSelection() {
         Locking.selection = selection
         if enabled { relock() }
+    }
+    func saveAllowedSelection() {
+        guard allowedSelection.applicationTokens.count <= 50, allowedSelection.webDomainTokens.count <= 50 else {
+            allowedSelection = Locking.allowedSelection
+            error = "허용 앱과 웹사이트는 각각 50개까지 선택할 수 있습니다."; return
+        }
+        // Category exceptions aren't supported by the Screen Time API.
+        allowedSelection.categoryTokens = []
+        Locking.allowedSelection = allowedSelection
+        Locking.reconcile()
+    }
+    func setStudyAllowOnly(_ value: Bool) {
+        studyAllowOnly = value
+        Shared.defaults.set(value, forKey: Shared.studyAllowOnlyKey)
+        Locking.reconcile()
     }
     func setEnabled(_ value: Bool) {
         guard !value || (authorized && hasSelection) else {
@@ -89,6 +106,7 @@ struct GuardView: View {
     @StateObject private var guardModel = GuardModel()
     @Environment(\.scenePhase) private var phase
     @State private var showPicker = false
+    @State private var showAllowedPicker = false
     @State private var showWait = false
     private let refreshClock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     #endif
@@ -111,12 +129,27 @@ struct GuardView: View {
                         Form {
                             Button("스크린 타임 연결") { Task { await guardModel.authorize(family: Shared.defaults.bool(forKey: Shared.familyModeKey)) } }
                             Button("잠글 앱 선택") { showPicker = true }.disabled(!guardModel.authorized)
+                            Button("허용 앱 · 웹사이트 선택") { showAllowedPicker = true }.disabled(!guardModel.authorized)
+                            Text("허용 앱 \(guardModel.allowedSelection.applicationTokens.count)개 · 허용 웹사이트 \(guardModel.allowedSelection.webDomainTokens.count)개")
+                            Toggle("공부 중 허용 앱만 사용", isOn: Binding(get: { guardModel.studyAllowOnly }, set: { guardModel.setStudyAllowOnly($0) }))
+                                .disabled(!guardModel.authorized)
+                            Text("허용 목록은 선택 앱·카테고리 잠금보다 우선합니다. 공부 중 허용 앱만 사용을 켜면 목록 밖의 앱과 웹사이트가 잠깁니다. 전화와 메시지가 필요하면 허용 앱에 추가해주세요. 허용 목록에서는 개별 앱과 웹사이트를 선택해주세요.")
+                                .font(.caption).foregroundStyle(.secondary)
                             Toggle("선택한 앱 잠그기", isOn: Binding(get: { guardModel.enabled }, set: { guardModel.setEnabled($0) }))
                                 .disabled(!guardModel.authorized || !guardModel.hasSelection)
                             Text("고요 자체는 선택하지 마세요. 공부 중에는 이 설정과 별도로 선택한 앱이 잠깁니다.")
                                 .font(.subheadline).foregroundStyle(.secondary)
                         }.navigationTitle("잠금 설정")
                             .familyActivityPicker(isPresented: $showPicker, selection: $guardModel.selection)
+                            .sheet(isPresented: $showAllowedPicker) {
+                                NavigationStack {
+                                    FamilyActivityPicker(selection: $guardModel.allowedSelection)
+                                        .navigationTitle("허용 앱 · 웹사이트")
+                                        .toolbar { ToolbarItem(placement: .confirmationAction) {
+                                            Button("저장") { guardModel.saveAllowedSelection(); showAllowedPicker = false }
+                                        } }
+                                }
+                            }
                     }
                 }
             }
