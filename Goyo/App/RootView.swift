@@ -53,6 +53,14 @@ struct RootView: View {
         .fullScreenCover(item: $opened) { service in BrowserCover(service: service) }
         .fullScreenCover(isPresented: Binding(get: { breaks.resting && opened == nil && pending == nil }, set: { _ in })) { RestView() }
         .onChange(of: phase) { _, value in if value == .background { model.settingsUnlocked = false } }
+        .task {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--goyo-smoke-study") {
+                if !study.inSession { study.start() }
+                selectedTab = 3
+            }
+            #endif
+        }
         .saturation(model.settings.grayscale ? 0 : 1)
     }
 }

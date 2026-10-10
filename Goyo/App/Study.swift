@@ -178,6 +178,7 @@ struct StudyView: View {
             .sheet(item: $rating) { request in FocusRatingView(segmentID: request.id) }
             .fullScreenCover(isPresented: $focusScreen) { StudyFocusView() }
             .onChange(of: study.inSession) { _, value in if value { focusScreen = true } }
+            .onAppear { if study.inSession { focusScreen = true } }
     }
     private func header(_ now: Date) -> some View {
         let today = Calendar.current.startOfDay(for: now)

@@ -12,7 +12,7 @@
     } catch (_) { return false; }
   }
   function installOnlyText(text) {
-    return /(?:open\s+(?:in\s+)?(?:the\s+)?(?:youtube|instagram|dcinside)?\s*app|(?:get|download|install)\s+(?:the\s+)?app|앱(?:에서|으로)\s*열기|앱\s*(?:설치|다운로드)|(?:유튜브|인스타그램|디시인사이드)\s*앱\s*열기)/i.test(text);
+    return /(?:(?:open|continue)\s+(?:in\s+)?(?:the\s+)?(?:youtube|instagram|dcinside)?\s*app|(?:get|download|install)\s+(?:the\s+)?(?:youtube|instagram|dcinside)?\s*app|앱(?:에서|으로)\s*(?:열기|보기|계속)|앱\s*(?:설치|다운로드|사용)|(?:유튜브|인스타그램|디시인사이드)\s*앱\s*열기)/i.test(text);
   }
   function apply() {
     scheduled = false;
@@ -25,6 +25,8 @@
     if (!settings.hideInstallPrompts) return;
     // A login dialog without an install CTA remains available.
     document.querySelectorAll(containers).forEach(container => {
+      // An app-download footer in a login dialog must not hide its login form.
+      if (container.querySelector('input[type="password"],input[autocomplete="username"],input[autocomplete="email"]')) return;
       const links = [...container.querySelectorAll('a[href]')];
       const buttons = [...container.querySelectorAll('button,[role="button"]')];
       const install = links.some(link => isInstallLink(link.href)) || buttons.some(button => installOnlyText(button.textContent || ''));

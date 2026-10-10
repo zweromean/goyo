@@ -1,0 +1,66 @@
+name: Goyo signed iPhone app
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-iphone:
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      P12_BASE64: ${{ secrets.GOYO_P12_BASE64 }}
+      P12_PASSWORD: ${{ secrets.GOYO_P12_PASSWORD }}
+      PROFILES_BASE64: ${{ secrets.GOYO_PROFILES_ZIP_BASE64 }}
+      SIGNING_IDENTITY: ${{ secrets.GOYO_SIGNING_IDENTITY }}
+      BUNDLE_ID: ${{ vars.GOYO_BUNDLE_ID || 'app.goyo.detox' }}
+      APP_GROUP: ${{ vars.GOYO_APP_GROUP || 'group.app.goyo.detox' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Prepare secure signing files
+        run: |
+          python3 - <<'PY'
+          import base64, os, secrets, subprocess
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'goyo-signing'; root.mkdir(mode=0o700)
+          required = ['P12_BASE64', 'PROFILES_BASE64', 'SIGNING_IDENTITY']
+          if any(not os.environ.get(key) for key in required):
+              raise SystemExit('Set GOYO_P12_BASE64, GOYO_P12_PASSWORD, GOYO_PROFILES_ZIP_BASE64 and GOYO_SIGNING_IDENTITY in repository Actions secrets. Family Controls profiles must cover the app and all three extensions.')
+          for key, name in [('P12_BASE64', 'certificate.p12'), ('PROFILES_BASE64', 'profiles.zip')]:
+              path = root / name; path.write_bytes(base64.b64decode(os.environ[key], validate=True)); path.chmod(0o600)
+          keychain = str(root / 'signing.keychain-db'); password = secrets.token_urlsafe(32)
+          def run(*args): subprocess.run(args, check=True, capture_output=True)
+          run('security', 'create-keychain', '-p', password, keychain)
+          run('security', 'set-keychain-settings', '-lut', '21600', keychain)
+          run('security', 'unlock-keychain', '-p', password, keychain)
+          run('security', 'import', str(root/'certificate.p12'), '-P', os.environ.get('P12_PASSWORD', ''), '-k', keychain, '-T', '/usr/bin/codesign')
+          run('security', 'list-keychains', '-d', 'user', '-s', keychain)
+          run('security', 'set-key-partition-list', '-S', 'apple-tool:,apple:,codesign:', '-s', '-k', password, keychain)
+          PY
+      - name: Build full device app
+        run: |
+          xcodebuild -project Goyo/Goyo.xcodeproj -scheme Goyo -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/goyo-signed-build" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM= "GOYO_BUNDLE_ID=$BUNDLE_ID" "GOYO_APP_GROUP=$APP_GROUP" build
+      - name: Sign full app and extensions
+        run: |
+          python3 Goyo/Tools/sign_device_app.py "$RUNNER_TEMP/goyo-signed-build/Build/Products/Release-iphoneos/Goyo.app" "$RUNNER_TEMP/goyo-signing/profiles.zip" "$SIGNING_IDENTITY"
+          python3 Goyo/Tools/package_ipa.py "$RUNNER_TEMP/goyo-signed-build/Build/Products/Release-iphoneos/Goyo.app" "$GITHUB_WORKSPACE/dist/Goyo-signed.ipa"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Goyo-signed-iPhone
+          path: dist/Goyo-signed.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove signing material
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os, shutil, subprocess
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'goyo-signing'
+          subprocess.run(['security', 'delete-keychain', str(root / 'signing.keychain-db')], capture_output=True)
+          shutil.rmtree(root, ignore_errors=True)
+          PY

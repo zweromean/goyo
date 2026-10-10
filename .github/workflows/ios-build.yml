@@ -44,6 +44,7 @@ jobs:
           node Tests/reading.test.cjs
           node Tests/dc.test.cjs
           node Tests/install-prompts.test.cjs
+          python3 Tests/signing.test.py
 
       - name: Build device app
         shell: bash
@@ -77,4 +78,26 @@ jobs:
           name: ${{ matrix.scheme }}-IPA
           path: dist/${{ matrix.scheme }}-unsigned.ipa
           if-no-files-found: error
+          retention-days: 14
+
+  simulator-smoke:
+    name: Launch full Goyo on iPhone Simulator
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Compile full simulator app
+        run: |
+          xcodebuild -project Goyo/Goyo.xcodeproj -scheme Goyo -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/goyo-simulator" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM= build
+      - name: Verify launch and capture screens
+        run: |
+          python3 Goyo/Tools/simulator_smoke.py "$RUNNER_TEMP/goyo-simulator/Build/Products/Debug-iphonesimulator/Goyo.app" "$GITHUB_WORKSPACE/smoke-screens"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: Goyo-simulator-screens
+          path: smoke-screens
+          if-no-files-found: warn
           retention-days: 14
