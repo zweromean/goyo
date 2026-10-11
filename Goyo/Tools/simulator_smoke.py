@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import plistlib
 import subprocess
 import time
 from pathlib import Path
@@ -16,7 +17,7 @@ def smoke(app, destination):
     devices = json.loads(command('xcrun', 'simctl', 'list', 'devices', 'available', '-j'))['devices']
     choices = [d for group in devices.values() for d in group if d.get('isAvailable') and d['name'].startswith('iPhone')]
     if not choices: raise RuntimeError('No available iPhone simulator runtime.')
-    device = choices[0]['udid']; bundle = 'app.goyo.detox'
+    device = choices[0]['udid']; bundle = plistlib.loads((app / 'Info.plist').read_bytes())['CFBundleIdentifier']
     destination.mkdir(parents=True, exist_ok=True)
     if choices[0]['state'] != 'Booted': command('xcrun', 'simctl', 'boot', device)
     command('xcrun', 'simctl', 'bootstatus', device, '-b')
@@ -33,7 +34,7 @@ def smoke(app, destination):
     try:
         capture('Goyo-home')
         capture('Goyo-study', '--goyo-smoke-study')
-        (destination / 'result.json').write_text(json.dumps({'app': 'Goyo', 'device': choices[0]['name'], 'screens': ['home', 'study'], 'launch_survived_seconds': 8, 'scope': 'Simulator launch smoke check. Does not verify real-device Screen Time authorization or blocking.'}, indent=2))
+        (destination / 'result.json').write_text(json.dumps({'app': app.stem, 'device': choices[0]['name'], 'screens': ['home', 'study'], 'launch_survived_seconds': 8, 'scope': 'Simulator launch smoke check. Does not verify real-device Screen Time authorization or blocking.'}, indent=2))
         print('PASS: full Goyo survived home and study launches on iPhone Simulator.')
     finally:
         subprocess.run(['xcrun', 'simctl', 'shutdown', device], capture_output=True)

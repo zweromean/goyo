@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scheme: [Goyo, GoyoBrowser]
+        scheme: [GoyoStandalone, Goyo, GoyoBrowser]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -71,7 +71,7 @@ jobs:
             "$RUNNER_TEMP/goyo-device/Build/Products/Release-iphoneos/${{ matrix.scheme }}.app" \
             "$GITHUB_WORKSPACE/dist/${{ matrix.scheme }}-unsigned.ipa"
           printf '%s\n' 'Device build succeeded. Goyo includes the Screen Time extensions; it requires Family Controls and App Group provisioning for all four targets to run.' >> "$GITHUB_STEP_SUMMARY"
-          printf '%s\n' 'GoyoBrowser is the companion browser build. Free-account re-signing of Goyo does not enable Screen Time.' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' 'GoyoStandalone is the complete UI build with Screen Time runtime/capabilities/extensions excluded. Screen Time settings only store preferences.' >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v6
         with:
@@ -81,7 +81,7 @@ jobs:
           retention-days: 14
 
   simulator-smoke:
-    name: Launch full Goyo on iPhone Simulator
+    name: Launch standalone Goyo on iPhone Simulator
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -90,14 +90,14 @@ jobs:
           persist-credentials: false
       - name: Compile full simulator app
         run: |
-          xcodebuild -project Goyo/Goyo.xcodeproj -scheme Goyo -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/goyo-simulator" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM= build
+          xcodebuild -project Goyo/Goyo.xcodeproj -scheme GoyoStandalone -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/goyo-simulator" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM= build
       - name: Verify launch and capture screens
         run: |
-          python3 Goyo/Tools/simulator_smoke.py "$RUNNER_TEMP/goyo-simulator/Build/Products/Debug-iphonesimulator/Goyo.app" "$GITHUB_WORKSPACE/smoke-screens"
+          python3 Goyo/Tools/simulator_smoke.py "$RUNNER_TEMP/goyo-simulator/Build/Products/Debug-iphonesimulator/GoyoStandalone.app" "$GITHUB_WORKSPACE/smoke-screens"
       - uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: Goyo-simulator-screens
+          name: GoyoStandalone-simulator-screens
           path: smoke-screens
           if-no-files-found: warn
           retention-days: 14

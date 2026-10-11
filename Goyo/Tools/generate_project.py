@@ -19,6 +19,7 @@ main_sources = sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'App').glob('*.s
 shared_sources = sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'Shared').glob('*.swift'))
 targets = {
     'Goyo': dict(kind='app', sources=main_sources+shared_sources, bundle='$(GOYO_BUNDLE_ID)', family=True, resources=True),
+    'GoyoStandalone': dict(kind='app', sources=main_sources+shared_sources, bundle='$(GOYO_BUNDLE_ID)', family=False, resources=True),
     'GoyoBrowser': dict(kind='app', sources=main_sources+shared_sources, bundle='$(GOYO_BUNDLE_ID).browser', family=False, resources=True),
     'GoyoShieldConfiguration': dict(kind='extension', sources=['Extensions/ShieldConfiguration/ShieldConfiguration.swift','Shared/Preferences.swift'], bundle='$(GOYO_BUNDLE_ID).shieldconfiguration', family=True, extension='com.apple.ManagedSettingsUI.shield-configuration-service', principal='ShieldConfigurationExtension'),
     'GoyoShieldAction': dict(kind='extension', sources=['Extensions/ShieldAction/ShieldAction.swift','Shared/Preferences.swift'], bundle='$(GOYO_BUNDLE_ID).shieldaction', family=True, extension='com.apple.ManagedSettings.shield-action-service', principal='ShieldActionExtension'),
@@ -93,7 +94,8 @@ for name,spec in targets.items():
             settings['ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS']='YES'
         flags=['$(inherited)']
         if mode=='Debug': flags.append('DEBUG')
-        if name=='GoyoBrowser': flags.append('WEB_ONLY')
+        if name in ['GoyoBrowser','GoyoStandalone']: flags.append('WEB_ONLY')
+        if name=='GoyoStandalone': flags.append('STANDALONE')
         settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS']=flags
         configs.append(add('config:'+name+':'+mode,isa='XCBuildConfiguration',baseConfigurationReference=source_refs['Config.xcconfig'],buildSettings=settings,name=mode))
     configlist=add('configlist:'+name,isa='XCConfigurationList',buildConfigurations=configs,defaultConfigurationIsVisible=0,defaultConfigurationName='Release')
@@ -118,7 +120,7 @@ directory=ROOT/'Goyo.xcodeproj'
 directory.mkdir(exist_ok=True)
 (directory/'project.pbxproj').write_text('// !$*UTF8*$!\n'+serialize({'archiveVersion':1,'classes':{},'objectVersion':56,'objects':objects,'rootObject':project})+'\n')
 schemes=directory/'xcshareddata/xcschemes';schemes.mkdir(parents=True,exist_ok=True)
-for name in ['Goyo','GoyoBrowser']:
+for name in ['Goyo','GoyoBrowser','GoyoStandalone']:
     ref=f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{target_ids[name]}" BuildableName="{name}.app" BlueprintName="{name}" ReferencedContainer="container:Goyo.xcodeproj"/>'
     (schemes/f'{name}.xcscheme').write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="1600" version="1.3">

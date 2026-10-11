@@ -35,8 +35,8 @@ assert index==len(tokens)
 objects=project['objects']
 assert objects[project['rootObject']]['isa']=='PBXProject'
 by_name={o['name']:o for o in objects.values() if o.get('isa')=='PBXNativeTarget'}
-assert set(by_name)=={'Goyo','GoyoBrowser','GoyoShieldConfiguration','GoyoShieldAction','GoyoActivityMonitor'}
-for target in ['Goyo','GoyoBrowser']:
+assert set(by_name)=={'Goyo','GoyoBrowser','GoyoStandalone','GoyoShieldConfiguration','GoyoShieldAction','GoyoActivityMonitor'}
+for target in ['Goyo','GoyoBrowser','GoyoStandalone']:
     phase=next(objects[p] for p in by_name[target]['buildPhases'] if objects[p]['isa']=='PBXSourcesBuildPhase')
     included={objects[objects[b]['fileRef']]['path'] for b in phase['files']}
     app_sources={str(p.relative_to(root)) for p in (root/'App').glob('*.swift')}
@@ -49,15 +49,15 @@ for target in ['Goyo','GoyoBrowser']:
 for path in re.findall(r'"path" = "([^"]+)";',pbx):
     if path.endswith(('.app','.appex')): continue
     assert (root/path).exists(), f'Missing project reference: {path}'
-for target in ['Goyo','GoyoBrowser','GoyoShieldConfiguration','GoyoShieldAction','GoyoActivityMonitor']:
+for target in ['Goyo','GoyoBrowser','GoyoStandalone','GoyoShieldConfiguration','GoyoShieldAction','GoyoActivityMonitor']:
     info=plistlib.loads((root/f'{target}-Info.plist').read_bytes())
     assert info['CFBundleIdentifier']=='$(PRODUCT_BUNDLE_IDENTIFIER)'
-    if target not in ['Goyo','GoyoBrowser']: assert info['NSExtension']['NSExtensionPrincipalClass'].startswith('$(PRODUCT_MODULE_NAME).')
-    if target!='GoyoBrowser':
+    if target not in ['Goyo','GoyoBrowser','GoyoStandalone']: assert info['NSExtension']['NSExtensionPrincipalClass'].startswith('$(PRODUCT_MODULE_NAME).')
+    if target not in ['GoyoBrowser','GoyoStandalone']:
         ent=plistlib.loads((root/f'{target}.entitlements').read_bytes())
         assert ent['com.apple.developer.family-controls'] is True
         assert ent['com.apple.security.application-groups']==['$(GOYO_APP_GROUP)']
-for scheme in ['Goyo','GoyoBrowser']:
+for scheme in ['Goyo','GoyoBrowser','GoyoStandalone']:
     tree=ET.parse(root/f'Goyo.xcodeproj/xcshareddata/xcschemes/{scheme}.xcscheme')
     assert tree.find('.//BuildableReference').attrib['BlueprintName']==scheme
 assert len(json.loads((root/'Resources/AdRules.json').read_text()))==4
@@ -66,4 +66,12 @@ assert 'WEB_ONLY' in pbx
 assert 'Embed App Extensions' in pbx
 assert all((root/f'Resources/Assets.xcassets/{name}.appiconset/{name}.png').exists() for name in ['IconGreen','IconNight','IconPaper'])
 assert all((root/p).exists() for p in ['README-KO.md','VALIDATION.md','LICENSE'])
-print('PASS: OpenStep PBX syntax, both app targets include all app sources, resources, five plists, four entitlements, two schemes, icon and documents.')
+standalone = by_name['GoyoStandalone']
+assert not standalone['dependencies']
+assert not any(objects[p]['isa']=='PBXCopyFilesBuildPhase' for p in standalone['buildPhases'])
+for config in objects[standalone['buildConfigurationList']]['buildConfigurations']:
+    settings=objects[config]['buildSettings']
+    assert 'CODE_SIGN_ENTITLEMENTS' not in settings
+    assert {'WEB_ONLY','STANDALONE'} <= set(settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'])
+assert 'GoyoAppGroup' not in plistlib.loads((root/'GoyoStandalone-Info.plist').read_bytes())
+print('PASS: OpenStep PBX syntax, all three app targets include all app sources, resources, six plists, four preserved entitlements, three schemes; standalone has no capabilities or extensions, icon and documents.')

@@ -102,6 +102,10 @@ final class GuardModel: ObservableObject {
 
 struct GuardView: View {
     @EnvironmentObject private var app: AppModel
+    #if WEB_ONLY
+    @AppStorage(Shared.studyAllowOnlyKey) private var storedStudyAllowOnly = false
+    @AppStorage(Shared.enabledKey) private var storedEnabled = false
+    #endif
     #if !WEB_ONLY
     @StateObject private var guardModel = GuardModel()
     @Environment(\.scenePhase) private var phase
@@ -113,10 +117,31 @@ struct GuardView: View {
     var body: some View {
         #if WEB_ONLY
         Form {
-            Section("브라우저 버전") {
-                Text("이 버전은 고요 안의 SNS 필터와 열기 전 대기를 제공합니다.")
-                Text("기존 앱 전체 잠금은 Goyo 전체 버전을 설치하면 사용할 수 있습니다.")
-                    .foregroundStyle(.secondary)
+            Section("스크린 타임") {
+                Label("스크린 타임 비활성", systemImage: "pause.circle")
+                Text("관련 창과 설정은 보관되어 있습니다. 현재 빌드에서는 기기 앱 잠금과 권한 연결을 실행하지 않습니다.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                NavigationLink("스크린 타임 · 잠금 설정") {
+                    ProtectedSettings {
+                        Form {
+                            Section("연결 · 앱 선택") {
+                                Button("스크린 타임 연결") {}.disabled(true)
+                                Button("잠글 앱 선택") {}.disabled(true)
+                                Button("허용 앱 · 웹사이트 선택") {}.disabled(true)
+                                Toggle("공부 중 허용 앱만 사용", isOn: $storedStudyAllowOnly)
+                                Toggle("선택한 앱 잠그기", isOn: $storedEnabled)
+                            }
+                            Section {
+                                Text("이 설정은 저장만 됩니다. 시스템 차단에는 적용되지 않습니다.")
+                            }
+                        }.navigationTitle("잠금 설정")
+                    }
+                }
+            }
+            Section("대기 후 사용") {
+                Button("\(app.settings.waitSeconds)초 기다리고 잠금 해제") {}.disabled(true)
+                Text("앱 안의 SNS 열기 전 대기는 필터 탭에서 설정할 수 있습니다.")
+                    .font(.subheadline).foregroundStyle(.secondary)
             }
         }.navigationTitle("앱 잠금")
         #else

@@ -29,7 +29,7 @@ struct ProtectionView: View {
                 Section {
                     Toggle("성인 웹사이트 차단", isOn: $app.settings.blockAdult)
                     #if WEB_ONLY
-                    Text("브라우저 버전에서는 내장 차단 도메인과 직접 추가한 도메인을 차단합니다. 전체 성인 콘텐츠 분류는 스크린 타임 연결이 있는 전체 버전에서 사용합니다.")
+                    Text("고요 브라우저에서 내장 차단 도메인과 직접 추가한 도메인을 차단합니다. 현재 빌드에서는 Apple 성인 콘텐츠 필터를 실행하지 않습니다.")
                         .font(.subheadline).foregroundStyle(.secondary)
                     #else
                     Text(guardModel.authorized ? "Apple 성인 콘텐츠 필터와 추가 차단 도메인을 적용합니다." : "스크린 타임을 연결하면 Apple 성인 콘텐츠 필터를 사용할 수 있습니다. 연결 전에는 내장·추가 도메인 목록만 고요 브라우저에 적용합니다.")
@@ -70,7 +70,14 @@ struct ProtectionView: View {
                 }
                 #else
                 Section("삭제 · 스크린 타임 권한 보호") {
-                    Text("전체 Goyo 버전의 가족 공유·보호자 승인 모드에서 설정할 수 있습니다.")
+                    Toggle("가족 공유 · 보호자 승인 모드", isOn: $familyMode)
+                        .onChange(of: familyMode) { _, value in Shared.defaults.set(value, forKey: Shared.familyModeKey) }
+                    Button("스크린 타임 연결") {}.disabled(true)
+                    Label("권한 연결 비활성", systemImage: "pause.circle")
+                    Toggle("앱 삭제 제한 · 기기 전체", isOn: $denyRemoval)
+                        .onChange(of: denyRemoval) { _, value in Shared.defaults.set(value, forKey: Shared.removalKey) }
+                    Text("설정값만 보관합니다. 가족 승인, 앱 삭제 제한, 스크린 타임 권한 보호는 실행되지 않습니다.")
+                        .font(.subheadline).foregroundStyle(.secondary)
                 }
                 #endif
             }.navigationTitle("보호 설정")
